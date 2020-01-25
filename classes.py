@@ -1,10 +1,49 @@
+from PIL import Image, ImageTk
 from pygame import *
-from math import inf
+from functions import *
+from setup import *
 
 
-Map_size_x = 150
-Map_size_y = 150
 Unit_list = []
+
+
+class AnimDrawer:
+    def __init__(self, animations, window):
+        self.animations = animations
+        self.window = window
+
+    def clear(self):
+        self.animations = []
+
+    def add(self, animation, coords):
+        self.animations.append((animation, coords))
+
+    def draw(self, bg):
+        for i in range(5):
+            for j in range(len(self.animations)):
+                self.animations[j][0].draw(i, self.animations[j][1])
+            display.update()
+            time.delay(200)
+            self.window.blit(bg)
+
+
+class Animation:
+    def __init__(self, paths, window):
+        self.pictures = [image.load(path) for path in paths]
+        self.window = window
+
+    def draw(self, frame, coords):
+        if frame >= len(self.pictures):
+            return 0
+        self.window.blit(self.pictures[frame], coords)
+
+    def clear(self, frame, coords, bg):
+        if frame >= len(self.pictures):
+            return 0
+        self.window.blit(bg, coords)
+
+    def __len__(self):
+        return len(self.pictures)
 
 
 class Tile:
@@ -29,8 +68,8 @@ class Unit:
             for y in range(self.size[1]):
                 Map[self.x + x][self.y + y].code = self.code
 
-    def pl(self):
-        return self.x, self.y
+    def pl(self, coords=(0, 0)):
+        return (self.x + coords[0]) * TILE_SIZE, (self.y + coords[1]) * TILE_SIZE  # место в пикселях
 
     def anim(self):
         # TODO: стоит на месте (анимация)
