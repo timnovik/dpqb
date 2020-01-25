@@ -64,7 +64,7 @@ class Object:
         pass
 
 
-Map = [[None for i in range(Map_size_y)] for j in range(Map_size_x)]
+Map = [[None for i in range(MAP_SIZE_Y)] for j in range(MAP_SIZE_X)]
 
 
 class Unit(Object):
@@ -119,8 +119,8 @@ class Unfriendly(Unit):
 
 
 class Hero(Unit):
-    def __init__(self, speed, hp, attack, defece, pl, size=(2, 2), **anim):
-        Unit.__init__(self, speed, hp, attack, defece, pl, size, **anim)
+    def __init__(self, speed, hp, attack, defence, pl, size=(2, 2), **anim):
+        Unit.__init__(self, speed, hp, attack, defence, pl, size, **anim)
 
     def move(self, direction, Drawer):
         self.rebuild((self.x + direction[0], self.y + direction[1]))
@@ -129,18 +129,18 @@ class Hero(Unit):
         else:
             Drawer.add(self.animations['run_left'], divide_line(self.pl(), self.pl(direction), len(self.animations['run_left'])))
 
-    def key_read(self):
-        keys = pygame.key.get_pressed()
-        res = [key for key in keys.keys() if keys[key]]
+    def key_read(self, Drawer):
+        keys = key.get_pressed()
+        print(keys)
         direction = (0, 0)
 
         # обработка всех кнопок, которые нажаты (пока только движение)
-        if MOVE_UP in res:
+        if keys[MOVE_UP]:
             direction[1] -= 1
-        if MOVE_DOWN in res:
+        if keys[MOVE_DOWN]:
             direction[1] += 1
-        if MOVE_LEFT in res:
+        if keys[MOVE_LEFT]:
             direction[0] -= 1
-        if MOVE_RIGHT in res:
+        if keys[MOVE_RIGHT]:
             direction[0] += 1
-        self.move(direction)
+        self.move(direction, Drawer)
