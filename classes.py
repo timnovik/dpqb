@@ -6,6 +6,7 @@ import random as rnd
 
 
 Unit_list = []
+statics_list = []
 
 
 def is_free(pl, size, elem):
@@ -24,6 +25,8 @@ class Object:
         self.y = pl[1]
         self.size = size
         self.anim = anim
+        if code < 0:
+            statics_list.append(self)
         for x in range(self.size[0]):
             for y in range(self.size[1]):
                 Map[self.x + x][self.y + y] = self
@@ -150,3 +153,5 @@ class Hero(Unit):
     def move(self, direction):
         if is_free(self.pl(coords=direction), self.size, self):
             self.rebuild(self.pl(coords=direction))
+            return True
+        return False
