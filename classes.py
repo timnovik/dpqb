@@ -8,6 +8,15 @@ import random as rnd
 Unit_list = []
 
 
+def is_free(pl, size, elem):
+    # проверка на то, что во всей области нет препятствий
+    res = True
+    for i in range(size[0]):
+        for j in range(size[1]):
+            res = res and Map[pl[0] + i][pl[1] + j] in [None, elem]
+    return res
+
+
 class Object:
     def __init__(self, code, pl, size, anim):
         self.code = code
@@ -66,7 +75,7 @@ class Unit(Object):
         for x in range(self.size[0]):
             for y in range(self.size[1]):
                 Map[self.x + x][self.y + y] = None
-        Unit_list.pop(Unit_list.find(self))
+        Unit_list.pop(Unit_list.index(self))
         for name in self.foe:
             name.targ = None
         Map[self.x][self.y] = Object(-1, self.pl(), self.size, self.die_img)
@@ -82,8 +91,8 @@ class Unit(Object):
 
 
 class Unfriendly(Unit):
-    def __init__(self, code, speed, hp, attack, defence, pl, size, anim):
-        Unit.__init__(self, code, speed, hp, attack, defence, pl, size, anim)
+    def __init__(self, code, speed, hp, attack, cooldown, defence, pl, hitdist, size, anim, die_img):
+        Unit.__init__(self, code, speed, hp, attack, cooldown, defence, pl, hitdist, size, anim, die_img)
         global Unit_list
         Unit_list.append(self)
         self.targ = None
@@ -94,7 +103,7 @@ class Unfriendly(Unit):
         if self.targ is not None:
             # вероятность потерять цель
             d = dist(self.pl(), self.targ.pl())
-            mab = (((10 - d // 2) if d > 2 * self.dist else (self.dist - d)) ** 2 - (1 - self.cnt_mov) * 30)
+            mab = (((10 - d // 2) if d > 2 * self.hitdist else (self.hitdist - d)) ** 2 - (1 - self.cnt_mov) * 30)
             if self.cnt_mov == 0:
                 mab = -1
             if rnd.randrange(100) <= mab:
@@ -134,10 +143,10 @@ class Unfriendly(Unit):
 
 
 class Hero(Unit):
-    def __init__(self, hp, attack, defence, pl, anim, die_img, size=(2, 2), code=1, speed=1):
-        Unit.__init__(self, code, speed, hp, attack, defence, pl, size, anim, die_img)
+    def __init__(self, hp, attack, cooldown, defence, pl, anim, die_img, size=(2, 2), code=1, speed=1, hitdist=1):
+        Unit.__init__(self, code, speed, hp, attack, cooldown, defence, pl, hitdist, size, anim, die_img)
         self.ang = 2
 
     def move(self, direction):
-        self.rebuild((self.x + direction[0], self.y + direction[1]))
-        # TODO: добавить поверку цели перемещения
+        if is_free(self.pl(coords=direction), self.size, self):
+            self.rebuild(self.pl(coords=direction))
