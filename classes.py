@@ -54,7 +54,7 @@ class Object:
         self.size = size
         for x in range(self.size[0]):
             for y in range(self.size[1]):
-                Map[self.x + x][self.y + y].unit = self
+                Map[self.x + x][self.y + y] = self
 
     def pl(self, coords=(0, 0)):
         return (self.x + coords[0]) * TILE_SIZE, (self.y + coords[1]) * TILE_SIZE  # место в пикселях
@@ -68,26 +68,34 @@ Map = [[None for i in range(Map_size_y)] for j in range(Map_size_x)]
 
 
 class Unit(Object):
-    def __init__(self, pl, size, **anim):
+    def __init__(self, speed, hp, attack, defence, pl, size, **anim):
         Object.__init__(self, pl, size, **anim)
         self.foe = 0  # количество юнитов, бегущих к тебе
         self.max_foe = 2  # максимальное количество юнитов, бегущих к тебе
         self.ang = 0  # параметр, отвечающий за привлекательность для юнитов, атакующих тебя
+        self.speed = speed
+        self.hp = hp
+        self.damage = attack
+        self.defence = defence
+
+    def attack(self, other):
+        # TODO: attack
+        pass
 
     def rebuild(self, pl):
         for x in range(self.size[0]):
             for y in range(self.size[1]):
-                Map[self.x + x][self.y + y].unit = None
+                Map[self.x + x][self.y + y] = None
         self.x, self.y = pl
         for x in range(self.size[0]):
             for y in range(self.size[1]):
-                Map[self.x + x][self.y + y].unit = self
+                Map[self.x + x][self.y + y] = self
 
 
 
 class Unfriendly(Unit):
-    def __init__(self, code, anim, pl, size):
-        self.__init__(code, anim, pl, size)
+    def __init__(self, speed, hp, attack, defece, pl, size, **anim):
+        Unit.__init__(self, speed, hp, attack, defece, pl, size, **anim)
         global Unit_list
         Unit_list.append(self)
         self.targ = None
@@ -111,8 +119,8 @@ class Unfriendly(Unit):
 
 
 class Hero(Unit):
-    def __init__(self, pl, size=(2, 2), **anim):
-        Unit.__init__(self, pl, size, **anim)
+    def __init__(self, speed, hp, attack, defece, pl, size=(2, 2), **anim):
+        Unit.__init__(self, speed, hp, attack, defece, pl, size, **anim)
 
     def move(self, direction, Drawer):
         self.rebuild((self.x + direction[0], self.y + direction[1]))
