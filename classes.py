@@ -46,42 +46,50 @@ class Animation:
         return len(self.pictures)
 
 
-class Tile:
-    def __init__(self, code, elem):
-        self.obj = code
-        self.unit = elem
-
-
-class Unit:
-    def __init__(self, code, anim, pl, size):
+class Object:
+    def __init__(self, pl, size, **anim):
         self.x = pl[0]
         self.y = pl[1]
-        self.img = anim
-        self.code = code  # коды статичных элементов отрицательны, код ничего - 0
+        self.animations = anim
         self.size = size
-        self.foe = 0  # количество юнитов, бегущих к тебе
-        self.max_foe = 2  # максимальное количество юнитов, бегущих к тебе
-        self.ang = 1  # параметрб отвечающий за привлекательность для юнитов, атакующих тебя
-        Unit_list.add(self)
-        Map[self.x][self.y].unit = self
         for x in range(self.size[0]):
             for y in range(self.size[1]):
-                Map[self.x + x][self.y + y].code = self.code
+                Map[self.x + x][self.y + y].unit = self
 
     def pl(self, coords=(0, 0)):
         return (self.x + coords[0]) * TILE_SIZE, (self.y + coords[1]) * TILE_SIZE  # место в пикселях
 
-    def anim(self):
+    def animation(self):
         # TODO: стоит на месте (анимация)
         pass
 
 
-Map = [[Tile(0, None) for i in range(Map_size_y)] for j in range(Map_size_x)]
+Map = [[None for i in range(Map_size_y)] for j in range(Map_size_x)]
+
+
+class Unit(Object):
+    def __init__(self, pl, size, **anim):
+        Object.__init__(self, pl, size, **anim)
+        self.foe = 0  # количество юнитов, бегущих к тебе
+        self.max_foe = 2  # максимальное количество юнитов, бегущих к тебе
+        self.ang = 0  # параметр, отвечающий за привлекательность для юнитов, атакующих тебя
+
+    def rebuild(self, pl):
+        for x in range(self.size[0]):
+            for y in range(self.size[1]):
+                Map[self.x + x][self.y + y].unit = None
+        self.x, self.y = pl
+        for x in range(self.size[0]):
+            for y in range(self.size[1]):
+                Map[self.x + x][self.y + y].unit = self
+
 
 
 class Unfriendly(Unit):
-    def __init__(self):
-        self.__init__()
+    def __init__(self, code, anim, pl, size):
+        self.__init__(code, anim, pl, size)
+        global Unit_list
+        Unit_list.append(self)
         self.targ = None
         self.ang = 0
 
@@ -100,3 +108,31 @@ class Unfriendly(Unit):
     def losetarg(self):
         self.targ.foe -= 1
         self.targ = None
+
+
+class Hero(Unit):
+    def __init__(self, pl, size=(2, 2), **anim):
+        Unit.__init__(self, pl, size, **anim)
+
+    def move(self, direction, Drawer):
+        self.rebuild((self.x + direction[0], self.y + direction[1]))
+        if direction[0] >= 0:
+            Drawer.add(self.animations['run_right'], divide_line(self.pl(), self.pl(direction), len(self.animations['run_right'])))
+        else:
+            Drawer.add(self.animations['run_left'], divide_line(self.pl(), self.pl(direction), len(self.animations['run_left'])))
+
+    def key_read(self):
+        keys = pygame.key.get_pressed()
+        res = [key for key in keys.keys() if keys[key]]
+        direction = (0, 0)
+
+        # обработка всех кнопок, которые нажаты (пока только движение)
+        if MOVE_UP in res:
+            direction[1] -= 1
+        if MOVE_DOWN in res:
+            direction[1] += 1
+        if MOVE_LEFT in res:
+            direction[0] -= 1
+        if MOVE_RIGHT in res:
+            direction[0] += 1
+        self.move(direction)
