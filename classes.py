@@ -48,9 +48,11 @@ Map = [[None for i in range(MAP_SIZE_Y)] for j in range(MAP_SIZE_X)]
 
 
 class Unit(Object):
-    def __init__(self, code, speed, hp, attack, cooldown, defence, pl, hitdist, size, anim, die_img):
+    def __init__(self, code, speed, hp, attack, cooldown, defence, pl, hitdist, size, anim):
         Object.__init__(self, code, pl, size, anim)
         Unit_list.append(self)
+        self.die_img = anim['dead_right']
+        self.side = True  # True, если смотрит вправо
         self.foe = []  # юниты, бегуще к тебе
         self.max_foe = 2  # максимальное количество юнитов, бегущих к тебе
         self.ang = 1  # параметр, отвечающий за привлекательность для юнитов, атакующих тебя
@@ -58,20 +60,22 @@ class Unit(Object):
         self.hp = hp
         self.damage = attack
         self.defence = defence  # defence
-        self.timer = 0
+        self.timer = cooldown
         self.COOLDOWN = cooldown
-        self.die_img = die_img
         self.hitdist = hitdist
 
     def attack(self, other):
-        # self атакует other, если закончилась перезарядка
-        if self.timer <= 0:
-            self.timer = self.COOLDOWN
-            damage = self.damage * other.defence
-            if damage >= other.hp:
-                other.die()
-            else:
-                other.hp -= damage
+        if other is not None and other.code >= 0:
+            # self атакует other, если закончилась перезарядка
+            if self.timer <= 0:
+                self.timer = self.COOLDOWN
+                damage = self.damage * other.defence
+                if damage >= other.hp:
+                    other.die()
+                else:
+                    other.hp -= damage
+                return True
+        return False
 
     def die(self):
         # стирает все упоминания себя, создаёт на месте себя труп
@@ -94,8 +98,8 @@ class Unit(Object):
 
 
 class Unfriendly(Unit):
-    def __init__(self, code, speed, hp, attack, cooldown, defence, pl, hitdist, size, anim, die_img):
-        Unit.__init__(self, code, speed, hp, attack, cooldown, defence, pl, hitdist, size, anim, die_img)
+    def __init__(self, code, speed, hp, attack, cooldown, defence, pl, hitdist, size, anim):
+        Unit.__init__(self, code, speed, hp, attack, cooldown, defence, pl, hitdist, size, anim)
         global Unit_list
         Unit_list.append(self)
         self.targ = None
@@ -146,8 +150,8 @@ class Unfriendly(Unit):
 
 
 class Hero(Unit):
-    def __init__(self, hp, attack, cooldown, defence, pl, anim, die_img, size=(2, 2), code=1, speed=1, hitdist=1):
-        Unit.__init__(self, code, speed, hp, attack, cooldown, defence, pl, hitdist, size, anim, die_img)
+    def __init__(self, hp, attack, cooldown, defence, pl, anim, size=(2, 2), code=1, speed=1, hitdist=1):
+        Unit.__init__(self, code, speed, hp, attack, cooldown, defence, pl, hitdist, size, anim)
         self.ang = 2
 
     def move(self, direction):
@@ -155,3 +159,6 @@ class Hero(Unit):
             self.rebuild(self.pl(coords=direction))
             return True
         return False
+
+    def movement(self):
+        return []

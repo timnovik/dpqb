@@ -17,17 +17,18 @@ def are_all_green(i1, j1, i2, j2, img):
     return True
 
 
-def load_images(hero):
-    stand = [image.load(f'images/{hero}/stay.png')] * 5
-    stand_left = [image.load(f'images/{hero}/stay2.png')] * 5
-    move_right = [image.load(f'images/{hero}/run1.png')] * 2 + \
-                 [image.load(f'images/{hero}/run2.png')] * 3
-    move_left = [image.load(f'images/{hero}/run1left.png')] * 2 + \
-                [image.load(f'images/{hero}/run2left.png')] * 3
-    attack_right = [stand[0]] + [image.load(f'images/{hero}/attack.png')] + [stand[0]] * 3
-    attack_left = [stand_left[0]] + [image.load(f'images/{hero}/attackleft.png')] + [stand_left[0]] * 3
-
-    return {'stand': stand, 'stand_left': stand_left, 'move_right': move_right, 'move_left': move_left, 'attack_right': attack_right, 'attack_left': attack_left}
+def load_images(path):
+    stand = [image.load(f'images/{path}/stay.png')] * 5
+    stand_left = [image.load(f'images/{path}/stay2.png')] * 5
+    move_right = [image.load(f'images/{path}/run1.png')] * 2 + \
+                 [image.load(f'images/{path}/run2.png')] * 3
+    move_left = [image.load(f'images/{path}/run1left.png')] * 2 + \
+                [image.load(f'images/{path}/run2left.png')] * 3
+    attack_right = [stand[0]] + [image.load(f'images/{path}/attack.png')] + [stand[0]] * 3
+    attack_left = [stand_left[0]] + [image.load(f'images/{path}/attackleft.png')] + [stand_left[0]] * 3
+    dead = [image.load(f'images/{path}/dead.png')] * 5
+    dead_left = [image.load(f'images/{path}/deadleft.png')] * 5
+    return {'stand': stand, 'stand_left': stand_left, 'move_right': move_right, 'move_left': move_left, 'attack_right': attack_right, 'attack_left': attack_left, 'dead_right': dead, 'dead_left': dead_left}
 
 
 def bfs(map, coords1, coords2):
