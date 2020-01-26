@@ -1,6 +1,6 @@
 import pygame
 pygame.init()
-from functions import *
+from functions_test import *
 from setup import *
 import random as rnd
 from math import inf
@@ -52,7 +52,6 @@ class Object:
         for x in range(self.size[0]):
             for y in range(self.size[1]):
                 Map[self.x + x][self.y + y] = None
-        del self
 
 
 Map = [[None for i in range(MAP_SIZE_Y)] for j in range(MAP_SIZE_X)]
@@ -77,7 +76,7 @@ class Unit(Object):
 
     def attack(self, other):
         # self атакует other, если закончилась перезарядка
-        if self.timer <= 0:
+        if self.timer <= 0 and ((self.code in unfriendly) is (other.code in unfriendly)):
             self.timer = self.COOLDOWN
             damage = self.damage * other.defence
             if damage >= other.hp:
@@ -115,7 +114,6 @@ class Unfriendly(Unit):
         self.cnt_mov = 0
 
     def movement(self):
-        movements = []
         if self.targ is not None:
             if dist(self.targ.pl(), self.pl()) <= self.hitdist:
                 self.attack(self.targ)
@@ -149,19 +147,19 @@ class Unfriendly(Unit):
                 self.findtarg()
             else:
                 self.findtarg()
-                movements = self.movement()
-        return movements
+                self.movement()
 
     def findtarg(self):
         # поиск цели для перемещения
         self.targ = min(Unit_list,
-                        key=lambda other: max(abs(other.x - self.x), abs(other.y - self.y)) * other.ang
+                        key=lambda other: dist(self.pl(), other.pl()) / other.ang
                         if len(other.foe) <= other.max_foe
-                        else 0)
+                        else inf)
         self.targ.foe.append(self)
 
     def losetarg(self):
-        self.targ.foe.pop(self.targ.foe.index(self))
+        if self.targ != None:
+            self.targ.foe.pop(self.targ.foe.index(self))
         self.targ = None
         self.cnt_mov = 0
 
@@ -176,24 +174,24 @@ class Hero(Unit):
             self.rebuild(self.pl(coords=direction))
 
     def attack(self, other):
-        def attack(self, other):
-            dirr = (0, 0)
-            if self.timer <= 0 and other.x - self.x >= -1 and other.y - self.y >= -1:
-                self.timer = self.COOLDOWN
-                damage = self.damage * other.defence
-                if damage >= other.hp:
-                    other.die()
-                else:
-                    other.hp -= damage
-            if other.x - self.x == -2:
-                dirr[0] -= 1
-            if other.y - self.y == -2:
-                dirr[1] -= 1
-            self.move(dirr)
+        dirr = (0, 0)
+        if self.timer <= 0 and other.x - self.x >= -1 and other.y - self.y >= -1:
+            self.timer = self.COOLDOWN
+            damage = self.damage * other.defence
+            if damage >= other.hp:
+                other.die()
+            else:
+                other.hp -= damage
+        if other.x - self.x == -2:
+            dirr[0] -= 1
+        if other.y - self.y == -2:
+            dirr[1] -= 1
+        self.move(dirr)
+
 
 class EvilMan(Unfriendly):
-    def __init__(self, hp, attack, cooldown, defence, pl, anim, die_img, speed=3, hitdist=2, size=(2, 2)):
-        Unfriendly.__init__(self, 2, speed, hp, attack, cooldown, defence, pl, hitdist, size, anim, die_img)
+    def __init__(self, hp, attack, cooldown, defence, pl, anim, speed=3, hitdist=2, size=(2, 2)):
+        Unfriendly.__init__(self, 101, speed, hp, attack, cooldown, defence, pl, hitdist, size, anim)
 
     def attack(self, other):
         dirr = (0, 0)
@@ -219,31 +217,37 @@ class EvilMan(Unfriendly):
         # TODO: ultra
 
 
+class EvilKnight(Unfriendly):
+    def __init__(self, speed, hp, attack, cooldown, defence, pl, anim, size=(1, 1), hitdist=1):
+        Unit.__init__(self, 102, speed, hp, attack, cooldown, defence, pl, hitdist, size, anim)
+
+
 class EvilArcher(Unfriendly):
-    def __init__(self, code, speed, hp, attack, cooldown, defence, pl, hitdist, size, anim, die_img):
-        Unfriendly.__init__(self, code, speed, hp, attack, cooldown, defence, pl, hitdist, size, anim, die_img)
+    def __init__(self, speed, hp, attack, cooldown, defence, pl, hitdist, size, anim):
+        Unfriendly.__init__(self, 103, speed, hp, attack, cooldown, defence, pl, hitdist, size, anim)
         #TODO: paramethers Archer
 
     def findtarg(self):
         min_ = inf
         min_name = None
         for name in Unit_list:
-            if dist(self.pl(), name.pl()) <= self.hitdist and is_hitable(self.pl,name.pl()) and len(name.foe) <= name.max_foe + 1 and name.hp < min_ and name.ang != 0:
+            if dist(self.pl(), name.pl()) <= self.hitdist and is_hitable(self.pl,name.pl()) and len(name.foe) <= name.max_foe + 1 and name.hp < min_ and name.code not in unfriendly:
                 min_name = name
                 min_ = name.hp
         self.targ = min_name
         min_name.foe.append(self)
 
+
 class EvilHealer(Unfriendly):
-    def __init__(self, speed, hp, attack, cooldown, defence, pl, hitdist, size, anim, die_img, code=4):
-        Unfriendly.__init__(self, code, speed, hp, attack, cooldown, defence, pl, hitdist, size, anim, die_img)
+    def __init__(self, speed, hp, attack, cooldown, defence, pl, hitdist, size, anim):
+        Unfriendly.__init__(self, 104, speed, hp, attack, cooldown, defence, pl, hitdist, size, anim)
         #TODO: paramethers Healer
 
     def findtarg(self):
         min_ = inf
         min_name = None
         for name in Unit_list:
-            if dist(self.pl(), name.pl()) <= self.hitdist and len(name.foe) <= name.max_foe + 1 and name.hp < min_ and name.ang == 0:
+            if dist(self.pl(), name.pl()) <= self.hitdist and len(name.foe) <= name.max_foe + 1 and name.hp < min_ and name.code in evilHealer:
                 min_name = name
                 min_ = name.hp
         self.targ = min_name
