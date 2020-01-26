@@ -3,6 +3,7 @@ pygame.init()
 from functions import *
 from setup import *
 import random as rnd
+from math import inf
 
 
 Unit_list = []
@@ -14,9 +15,19 @@ def is_free(pl, size, elem):
     res = True
     for i in range(size[0]):
         for j in range(size[1]):
-            res = res and Map[pl[0] + i][pl[1] + j] in [None, elem]
+            try:
+                res = res and Map[pl[0] + i][pl[1] + j] in [None, elem]
+            except IndexError:
+                pass
     return res
 
+
+def is_hitable(st, fn):
+    # может ли быть прострел для лучника
+    res = True
+    for x, y in arrow(st, fn):
+        res = res and Map[x][y] in archer_hitval
+    return res
 
 class Object:
     def __init__(self, code, pl, size, anim):
@@ -51,8 +62,7 @@ class Unit(Object):
     def __init__(self, code, speed, hp, attack, cooldown, defence, pl, hitdist, size, anim):
         Object.__init__(self, code, pl, size, anim)
         Unit_list.append(self)
-        self.die_img = anim['dead_right']
-        self.side = True  # True, если смотрит вправо
+        self.side = True
         self.foe = []  # юниты, бегуще к тебе
         self.max_foe = 2  # максимальное количество юнитов, бегущих к тебе
         self.ang = 1  # параметр, отвечающий за привлекательность для юнитов, атакующих тебя
@@ -60,22 +70,20 @@ class Unit(Object):
         self.hp = hp
         self.damage = attack
         self.defence = defence  # defence
-        self.timer = cooldown
+        self.timer = 0
         self.COOLDOWN = cooldown
+        self.die_img = anim['dead_right']
         self.hitdist = hitdist
 
     def attack(self, other):
-        if other is not None and other.code >= 0:
-            # self атакует other, если закончилась перезарядка
-            if self.timer <= 0:
-                self.timer = self.COOLDOWN
-                damage = self.damage * other.defence
-                if damage >= other.hp:
-                    other.die()
-                else:
-                    other.hp -= damage
-                return True
-        return False
+        # self атакует other, если закончилась перезарядка
+        if self.timer <= 0:
+            self.timer = self.COOLDOWN
+            damage = self.damage * other.defence
+            if damage >= other.hp:
+                other.die()
+            else:
+                other.hp -= damage
 
     def die(self):
         # стирает все упоминания себя, создаёт на месте себя труп
@@ -107,44 +115,53 @@ class Unfriendly(Unit):
         self.cnt_mov = 0
 
     def movement(self):
-        if self.targ is not None:
-            # вероятность потерять цель
-            d = dist(self.pl(), self.targ.pl())
-            mab = (((10 - d // 2) if d > 2 * self.hitdist else (self.hitdist - d)) ** 2 - (1 - self.cnt_mov) * 30)
-            if self.cnt_mov == 0:
-                mab = -1
-            if rnd.randrange(100) <= mab:
-                self.losetarg()
+        movements = []
         if self.targ is not None:
             if dist(self.targ.pl(), self.pl()) <= self.hitdist:
                 self.attack(self.targ)
+                prob = 10 * self.cnt_mov ** 2
             else:
-                movements = bfs(Map, self.pl(), self.targ.pl())[:-1][:self.speed]
+                movements = bfs(Map, self.pl(), self.targ.pl())[:-1]
                 # все точки, которые прошёл юнтит при перемещении
-                self.rebuild(movements[-1])
+                self.rebuild(movements[self.speed - 1])
+                if len(movements) > 5 * self.speed:
+                    if dist(self.pl(), self.targ.pl()) > 4 * self.speed:
+                        prob = 3  # если юнит далеко от цели
+                    else:
+                        prob = 90  # если близко, но не может дойти
+                elif len(movements) > 2 * self.speed:
+                    if dist(self.pl(), self.targ.pl()) < 2 * self.hitdist:
+                        prob = 20
+                    else:
+                        prob = 80
+                else:
+                    prob = 99
             self.cnt_mov += 1
+            if rnd.randint(1, 100) < prob:
+                self.losetarg()
         else:
-            x_m = rnd.randint(-self.speed, self.speed)
-            y_m = rnd.randint(-self.speed, self.speed)
-            if Map[self.x + x_m][self.y + y_m] is None:
-                movements = bfs(Map, self.pl(), self.targ.pl())[:-1][:self.speed]
+            x_m = rnd.randint(-self.speed * 2, self.speed * 2)
+            y_m = rnd.randint(-self.speed * 2, self.speed * 2)
+            if is_free(self.pl(coords=(x_m, y_m)), self.size, self):
+                movements = bfs(Map, self.pl(), self.pl(coords=(x_m, y_m)))[:-1][:self.speed]
                 # все точки, которые прошёл юнтит при перемещении
                 self.rebuild(movements[-1])
                 self.findtarg()
             else:
                 self.findtarg()
-                self.movement()
+                movements = self.movement()
+        return movements
 
     def findtarg(self):
         # поиск цели для перемещения
         self.targ = min(Unit_list,
                         key=lambda other: max(abs(other.x - self.x), abs(other.y - self.y)) * other.ang
-                        if len(other.foe) < other.max_foe
+                        if len(other.foe) <= other.max_foe
                         else 0)
         self.targ.foe.append(self)
 
     def losetarg(self):
-        self.targ.foe.pop(self.targ.foe.find(self))
+        self.targ.foe.pop(self.targ.foe.index(self))
         self.targ = None
         self.cnt_mov = 0
 
@@ -154,11 +171,80 @@ class Hero(Unit):
         Unit.__init__(self, code, speed, hp, attack, cooldown, defence, pl, hitdist, size, anim)
         self.ang = 2
 
+    def movement(self, direction):
+        if is_free(self.pl(coords=direction), self.size, self):
+            self.rebuild(self.pl(coords=direction))
+
+    def attack(self, other):
+        def attack(self, other):
+            dirr = (0, 0)
+            if self.timer <= 0 and other.x - self.x >= -1 and other.y - self.y >= -1:
+                self.timer = self.COOLDOWN
+                damage = self.damage * other.defence
+                if damage >= other.hp:
+                    other.die()
+                else:
+                    other.hp -= damage
+            if other.x - self.x == -2:
+                dirr[0] -= 1
+            if other.y - self.y == -2:
+                dirr[1] -= 1
+            self.move(dirr)
+
+class EvilMan(Unfriendly):
+    def __init__(self, hp, attack, cooldown, defence, pl, anim, die_img, speed=3, hitdist=2, size=(2, 2)):
+        Unfriendly.__init__(self, 2, speed, hp, attack, cooldown, defence, pl, hitdist, size, anim, die_img)
+
+    def attack(self, other):
+        dirr = (0, 0)
+        if self.timer <= 0 and other.x - self.x >= -1 and other.y - self.y >= -1:
+            self.timer = self.COOLDOWN
+            damage = self.damage * other.defence
+            if damage >= other.hp:
+                other.die()
+            else:
+                other.hp -= damage
+        if other.x - self.x == -2:
+            dirr[0] -= 1
+        if other.y - self.y == -2:
+            dirr[1] -= 1
+        self.move(dirr)
+
     def move(self, direction):
         if is_free(self.pl(coords=direction), self.size, self):
             self.rebuild(self.pl(coords=direction))
-            return True
-        return False
 
-    def movement(self):
-        return []
+    def ultra(self):
+        pass
+        # TODO: ultra
+
+
+class EvilArcher(Unfriendly):
+    def __init__(self, code, speed, hp, attack, cooldown, defence, pl, hitdist, size, anim, die_img):
+        Unfriendly.__init__(self, code, speed, hp, attack, cooldown, defence, pl, hitdist, size, anim, die_img)
+        #TODO: paramethers Archer
+
+    def findtarg(self):
+        min_ = inf
+        min_name = None
+        for name in Unit_list:
+            if dist(self.pl(), name.pl()) <= self.hitdist and is_hitable(self.pl,name.pl()) and len(name.foe) <= name.max_foe + 1 and name.hp < min_ and name.ang != 0:
+                min_name = name
+                min_ = name.hp
+        self.targ = min_name
+        min_name.foe.append(self)
+
+class EvilHealer(Unfriendly):
+    def __init__(self, speed, hp, attack, cooldown, defence, pl, hitdist, size, anim, die_img, code=4):
+        Unfriendly.__init__(self, code, speed, hp, attack, cooldown, defence, pl, hitdist, size, anim, die_img)
+        #TODO: paramethers Healer
+
+    def findtarg(self):
+        min_ = inf
+        min_name = None
+        for name in Unit_list:
+            if dist(self.pl(), name.pl()) <= self.hitdist and len(name.foe) <= name.max_foe + 1 and name.hp < min_ and name.ang == 0:
+                min_name = name
+                min_ = name.hp
+        self.targ = min_name
+        min_name.foe.append(self)
